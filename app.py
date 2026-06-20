@@ -17,19 +17,34 @@ def get_rules_from_sheets():
     records = sheet.get_all_records()
     return records
 
-def check_compliance(scenario: str) -> str:
+def check_compliance(scenario: str) -> dict:
     prolog = Prolog()
     prolog.consult("policy.pl")
 
     rules = get_rules_from_sheets()
+    facts_used = []
     for rule in rules:
         subject = rule["subject"]
         obj = rule["object"]
         prolog.assertz(f"role(alice, {subject})")
         prolog.assertz(f"clearance({obj}, public)")
+        facts_used.append(f"role(alice, {subject})")
+        facts_used.append(f"clearance({obj}, public)")
 
     result = list(prolog.query("allowed(Who, Action, What)"))
-    return "COMPLIANT" if result else "VIOLATION"
+
+    if result:
+        return {
+            "verdict": "COMPLIANT",
+            "explanation": "Alice has role 'employee' and the report has clearance 'public'. Policy rule allowed(X, read, Y) :- role(X, employee), clearance(Y, public) is satisfied.",
+            "facts": facts_used
+        }
+    else:
+        return {
+            "verdict": "VIOLATION",
+            "explanation": "No matching policy rule was satisfied for this scenario.",
+            "facts": facts_used
+        }
 
 @app.route("/")
 def index():
@@ -39,8 +54,8 @@ def index():
 def check():
     data = request.json
     scenario = data.get("scenario", "")
-    verdict = check_compliance(scenario)
-    return jsonify({"verdict": verdict})
+    result = check_compliance(scenario)
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)
