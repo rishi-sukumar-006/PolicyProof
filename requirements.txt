@@ -1,0 +1,5 @@
+flask
+pyswip
+gspread
+google-auth
+google-genai

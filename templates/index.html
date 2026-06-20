@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PolicyProof</title>
+    <style>
+        body { font-family: monospace; background: #0a0a0a; color: #00ff00; padding: 40px; }
+        h1 { color: #00ff00; }
+        textarea { width: 100%; height: 100px; background: #111; color: #00ff00; border: 1px solid #00ff00; padding: 10px; font-size: 16px; }
+        button { margin-top: 10px; padding: 10px 30px; background: #00ff00; color: #000; border: none; cursor: pointer; font-size: 16px; }
+        #verdict { margin-top: 20px; font-size: 24px; font-weight: bold; }
+        .compliant { color: #00ff00; }
+        .violation { color: #ff0000; }
+    </style>
+</head>
+<body>
+    <h1>PolicyProof — Compliance Reasoning Engine</h1>
+    <p>Describe a scenario and the system will determine compliance using formal logic.</p>
+    <textarea id="scenario" placeholder="e.g. Alice is an employee and wants to read the public report"></textarea>
+    <br>
+    <button onclick="check()">Check Compliance</button>
+    <div id="verdict"></div>
+
+    <script>
+        async function check() {
+            const scenario = document.getElementById("scenario").value;
+            const res = await fetch("/check", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ scenario })
+            });
+            const data = await res.json();
+            const el = document.getElementById("verdict");
+            el.textContent = data.verdict;
+            el.className = data.verdict === "COMPLIANT" ? "compliant" : "violation";
+        }
+    </script>
+</body>
+</html>
