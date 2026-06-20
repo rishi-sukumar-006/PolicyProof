@@ -28,7 +28,9 @@ server <- function(input, output, session) {
       encode = "json"
     )
     result <- content(response, "parsed")
-    output$verdict <- renderText({ result$verdict })
+    output$verdict <- renderText({ 
+      paste0(result$verdict, "\n\n", result$explanation)
+    })
   })
 }
 
