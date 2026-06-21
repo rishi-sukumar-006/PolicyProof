@@ -2,7 +2,11 @@ from flask import Flask, request, jsonify, render_template
 from pyswip import Prolog
 import gspread
 from google.oauth2.service_account import Credentials
-
+from google import genai
+import re
+import os
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 app = Flask(__name__)
 
 SHEET_ID = "1myCS3mZRzTKlIqw1Aig_AHJLacEKuGgfOIr8Hxjd2E0"
@@ -16,35 +20,62 @@ def get_rules_from_sheets():
     sheet = client.open_by_key(SHEET_ID).sheet1
     records = sheet.get_all_records()
     return records
+def extract_facts_with_gemini(scenario: str):
+    """Returns (role, clearance) extracted from natural language, or None on failure."""
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=(
+                f"Extract two values from this scenario: the person's role "
+                f"(employee, contractor, or guest) and the document's clearance "
+                f"level (public, confidential, or restricted). "
+                f"Scenario: {scenario}\n"
+                f"Respond with ONLY two words separated by a comma, nothing else. "
+                f"Example: employee,public"
+            )
+        )
+        text = response.text.strip()
+        match = re.match(r"(\w+)\s*,\s*(\w+)", text)
+        if match:
+            role, clearance = match.group(1), match.group(2)
+            return role, clearance
+        return None
+    except Exception as e:
+        print(f"Gemini extraction failed: {e}")
+        return None
 
 def check_compliance(scenario: str) -> dict:
     prolog = Prolog()
     prolog.consult("policy.pl")
 
-    rules = get_rules_from_sheets()
-    facts_used = []
-    for rule in rules:
-        subject = rule["subject"]
-        obj = rule["object"]
-        prolog.assertz(f"role(alice, {subject})")
-        prolog.assertz(f"clearance({obj}, public)")
-        facts_used.append(f"role(alice, {subject})")
-        facts_used.append(f"clearance({obj}, public)")
+    extracted = extract_facts_with_gemini(scenario)
 
-    result = list(prolog.query("allowed(Who, Action, What)"))
+    if extracted:
+        role, clearance = extracted
+        source = "Gemini-extracted"
+    else:
+        role, clearance = "employee", "public"
+        source = "fallback mock (Gemini unavailable)"
+
+    prolog.assertz(f"role(alice, {role})")
+    prolog.assertz(f"clearance(report, {clearance})")
+
+    result = list(prolog.query("allowed(alice, read, report)"))
 
     if result:
-        return {
-            "verdict": "COMPLIANT",
-            "explanation": "Alice has role 'employee' and the report has clearance 'public'. Policy rule allowed(X, read, Y) :- role(X, employee), clearance(Y, public) is satisfied.",
-            "facts": facts_used
-        }
+        verdict = "COMPLIANT"
+        explanation = f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}. Policy rule allowed(X, read, Y) :- role(X, employee), clearance(Y, public) is satisfied."
     else:
-        return {
-            "verdict": "VIOLATION",
-            "explanation": "No matching policy rule was satisfied for this scenario.",
-            "facts": facts_used
-        }
+        verdict = "VIOLATION"
+        explanation = f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}. No matching policy rule was satisfied."
+
+    return {
+        "verdict": verdict,
+        "explanation": explanation,
+        "facts": [f"role(alice, {role})", f"clearance(report, {clearance})"]
+    }
+
+
 
 def check_transaction(amount, has_signoff, has_fraud_flag):
     prolog = Prolog()
