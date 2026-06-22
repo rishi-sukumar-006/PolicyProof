@@ -24,7 +24,7 @@ def extract_facts_with_gemini(scenario: str):
     """Returns (role, clearance) extracted from natural language, or None on failure."""
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-1.5-flash",
             contents=(
                 f"Extract two values from this scenario: the person's role "
                 f"(employee, contractor, or guest) and the document's clearance "
@@ -52,10 +52,10 @@ def check_compliance(scenario: str) -> dict:
 
     if extracted:
         role, clearance = extracted
-        source = "Gemini-extracted"
+        source = "extracted from your scenario by Gemini"
     else:
         role, clearance = "employee", "public"
-        source = "fallback mock (Gemini unavailable)"
+        source = "demonstration facts (Gemini quota unavailable — using representative role='employee', clearance='public' rather than parsing this exact scenario)"
 
     prolog.assertz(f"role(alice, {role})")
     prolog.assertz(f"clearance(report, {clearance})")
@@ -64,17 +64,28 @@ def check_compliance(scenario: str) -> dict:
 
     if result:
         verdict = "COMPLIANT"
-        explanation = f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}. Policy rule allowed(X, read, Y) :- role(X, employee), clearance(Y, public) is satisfied."
+        explanation = (
+            f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}.\n\n"
+            f"Rule checked: allowed(X, read, Y) :- role(X, employee), clearance(Y, public).\n\n"
+            f"role(alice, {role}) matches 'employee' — TRUE\n"
+            f"clearance(report, {clearance}) matches 'public' — TRUE\n\n"
+            f"Both conditions satisfied. Access is COMPLIANT."
+        )
     else:
         verdict = "VIOLATION"
-        explanation = f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}. No matching policy rule was satisfied."
+        explanation = (
+            f"Facts used ({source}): role=alice/{role}, clearance=report/{clearance}.\n\n"
+            f"Rule checked: allowed(X, read, Y) :- role(X, employee), clearance(Y, public).\n\n"
+            f"role(alice, {role}) matches 'employee' — {'TRUE' if role == 'employee' else 'FALSE'}\n"
+            f"clearance(report, {clearance}) matches 'public' — {'TRUE' if clearance == 'public' else 'FALSE'}\n\n"
+            f"At least one condition failed. Access is a VIOLATION."
+        )
 
     return {
         "verdict": verdict,
         "explanation": explanation,
         "facts": [f"role(alice, {role})", f"clearance(report, {clearance})"]
     }
-
 
 
 def check_transaction(amount, has_signoff, has_fraud_flag):
@@ -85,11 +96,6 @@ def check_transaction(amount, has_signoff, has_fraud_flag):
     list(prolog.query("retractall(manager_signoff(txn_demo))"))
     list(prolog.query("retractall(fraud_flag(txn_demo))"))
 
-
-
-
-
-
     prolog.assertz(f"transaction(txn_demo, {amount}, demo_user)")
     if has_signoff:
         prolog.assertz("manager_signoff(txn_demo)")
@@ -97,33 +103,56 @@ def check_transaction(amount, has_signoff, has_fraud_flag):
         prolog.assertz("fraud_flag(txn_demo)")
 
     result = list(prolog.query("approved(txn_demo)"))
+    verdict = "APPROVED" if result else "REJECTED"
 
-    if result:
-        verdict = "APPROVED"
+    # Build a step-by-step reasoning chain
+    chain = []
+    chain.append(f"1. Fact asserted: transaction(txn_demo, {amount}, demo_user)")
+    chain.append(f"2. Fact asserted: manager_signoff(txn_demo) = {'TRUE' if has_signoff else 'NOT FOUND'}")
+    chain.append(f"3. Fact asserted: fraud_flag(txn_demo) = {'TRUE' if has_fraud_flag else 'NOT FOUND'}")
+
+    if has_fraud_flag and not has_signoff:
+        chain.append("4. Checking rule: approved(Txn) :- fraud_flag(Txn), senior_cleared(Txn).")
+        chain.append("5. senior_cleared(txn_demo) — NOT FOUND")
+        chain.append("6. Rule FAILED — fraud flag present with no senior clearance")
+        reason = "Transaction blocked: fraud flag present and not senior-cleared."
+    elif amount < 50000 and not has_fraud_flag:
+        chain.append(f"4. Checking rule: approved(Txn) :- transaction(Txn, Amount, _), Amount < 50000, \\+ fraud_flag(Txn).")
+        chain.append(f"5. {amount} < 50000 — TRUE")
+        chain.append("6. Rule SATISFIED — auto-approval tier")
+        reason = f"Transaction auto-approved: ₹{amount} is under the ₹50,000 threshold with no fraud flag."
+    elif 50000 <= amount <= 500000:
+        chain.append(f"4. Checking rule: approved(Txn) :- transaction(Txn, Amount, _), Amount >= 50000, Amount =< 500000, manager_signoff(Txn), \\+ fraud_flag(Txn).")
+        chain.append(f"5. {amount} falls in mid-tier range — TRUE")
+        if has_signoff:
+            chain.append("6. manager_signoff(txn_demo) — TRUE")
+            chain.append("7. Rule SATISFIED")
+            reason = f"Transaction approved: ₹{amount} is in the mid-tier range and manager signoff was confirmed."
+        else:
+            chain.append("6. manager_signoff(txn_demo) — NOT FOUND")
+            chain.append("7. Rule FAILED — signoff required for this tier")
+            reason = f"Transaction blocked: ₹{amount} requires manager signoff, which was not provided."
+    elif amount > 500000:
+        chain.append(f"4. Checking rule: approved(Txn) :- transaction(Txn, Amount, _), Amount > 500000, manager_signoff(Txn), \\+ fraud_flag(Txn).")
+        chain.append(f"5. {amount} > 500000 — TRUE")
+        if has_signoff:
+            chain.append("6. manager_signoff(txn_demo) — TRUE")
+            chain.append("7. Rule SATISFIED")
+            reason = f"Transaction approved: ₹{amount} exceeds the high-value threshold but manager signoff was confirmed."
+        else:
+            chain.append("6. manager_signoff(txn_demo) — NOT FOUND")
+            chain.append("7. Rule FAILED — high-value transactions require signoff")
+            reason = f"Transaction blocked: ₹{amount} exceeds the high-value threshold and requires manager signoff."
     else:
-        verdict = "REJECTED"
+        reason = "No applicable rule matched."
 
-    explanation_parts = [f"Amount: ₹{amount}"]
-    explanation_parts.append(f"Manager signoff: {'Yes' if has_signoff else 'No'}")
-    explanation_parts.append(f"Fraud flag: {'Yes' if has_fraud_flag else 'No'}")
-
-    if amount < 50000 and not has_fraud_flag:
-        reason = "Auto-approved: amount under ₹50,000 with no fraud flag."
-    elif 50000 <= amount <= 500000 and has_signoff and not has_fraud_flag:
-        reason = "Approved: medium amount with manager signoff, no fraud flag."
-    elif amount > 500000 and has_signoff and not has_fraud_flag:
-        reason = "Approved: large amount with manager signoff, no fraud flag."
-    elif has_fraud_flag:
-        reason = "Rejected: fraud flag present and not senior-cleared." if not result else "Approved despite fraud flag: senior-cleared."
-    else:
-        reason = "Rejected: conditions for approval not met (missing signoff for this amount tier)."
+    full_explanation = "\n".join(chain) + f"\n\nFinal verdict: {reason}"
 
     return {
         "verdict": verdict,
-        "explanation": reason,
-        "facts": explanation_parts
+        "explanation": full_explanation,
+        "facts": [f"transaction(txn_demo, {amount}, demo_user)"]
     }
-
 
 
 @app.route("/")
