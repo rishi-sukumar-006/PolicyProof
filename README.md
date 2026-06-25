@@ -96,8 +96,3 @@ You'll also need:
 
 Built for Stack Unknown 2026.
 
-## What We'd Build Next
-
-- Full natural-language-to-Prolog fact extraction (currently demoed with representative facts due to API quota constraints during the build window)
-- A proper visual rule editor so non-technical compliance officers can write policies without touching Prolog syntax directly
-- Audit logging of every verdict to Firebase for compliance history tracking
