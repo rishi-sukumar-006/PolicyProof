@@ -18,17 +18,10 @@ else:
     print("[startup] GEMINI_API_KEY not set or empty — Gemini extraction is DISABLED, "
           "all requests will use the keyword fallback. Set it with: export GEMINI_API_KEY=...")
 
-# Pick whichever current model your API key has access to.
-# gemini-2.0-flash was retired June 2026 — use a model from your
-# Google AI Studio / Cloud console model list (e.g. gemini-2.5-flash,
-# gemini-3.5-flash) instead of copying an old tutorial's model name.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 SHEET_ID = "1myCS3mZRzTKlIqw1Aig_AHJLacEKuGgfOIr8Hxjd2E0"
 
-# JSON Schema describing exactly what we want back from Gemini.
-# response_schema forces the model to emit only these fields/types —
-# no prose, no markdown fences, no missing keys.
 FACT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -51,12 +44,6 @@ FACT_SCHEMA = {
 }
 
 def extract_facts_with_gemini(scenario: str):
-    """
-    Ask Gemini to turn a natural-language scenario into the structured
-    facts policy.pl needs: who, what role, what clearance level.
-    Returns (person, role, clearance) on success, or None on any failure
-    so the caller can fall back to keyword matching.
-    """
     if not gemini_client:
         return None
 
@@ -83,8 +70,6 @@ def extract_facts_with_gemini(scenario: str):
         role = str(data["role"]).strip().lower()
         clearance = str(data["clearance"]).strip().lower()
 
-        # Belt-and-suspenders: enum should guarantee this, but don't trust
-        # it blindly since we're about to interpolate this into Prolog.
         if role not in ("employee", "contractor", "guest"):
             role = "employee"
         if clearance not in ("public", "confidential", "restricted"):
@@ -95,8 +80,6 @@ def extract_facts_with_gemini(scenario: str):
         return person, role, clearance
 
     except Exception as e:
-        # Network error, quota exceeded, malformed JSON, missing key —
-        # any of these should degrade gracefully, not 500 the request.
         print(f"[gemini] extraction failed, falling back to keywords: {e}")
         return None
 
@@ -115,19 +98,6 @@ def get_rules_from_sheets():
     sheet = client.open_by_key(SHEET_ID).sheet1
     records = sheet.get_all_records()
     return records
-
-# ---------------------------------------------------------------------------
-# Policy -> Prolog rule generation.
-#
-# Scope, on purpose: this only generates new clauses for allowed/3, built
-# from the two fact predicates the engine already understands (role/2 and
-# clearance/2). It does NOT invent new predicates, rewrite existing rules,
-# or handle prohibitions/exceptions/conflicts. That's a much bigger problem
-# (rule-base consistency checking) that deserves its own design, not a demo
-# hack. What's here is real end-to-end: Gemini proposes a rule, the engine
-# either accepts or rejects it, and only an engine-verified rule ever gets
-# exercised against a test case.
-# ---------------------------------------------------------------------------
 
 ALLOWED_ROLES = ("employee", "contractor", "guest")
 ALLOWED_LEVELS = ("public", "confidential", "restricted")
@@ -158,14 +128,6 @@ RULE_SCHEMA = {
 }
 
 def generate_rule_with_gemini(policy_text: str):
-    """
-    Translate one natural-language access policy into the pieces needed
-    to build a new allowed/3 Prolog clause. We ask for structured fields
-    (action/role/clearance) rather than raw Prolog text, because that lets
-    us assemble syntactically guaranteed-valid Prolog ourselves instead of
-    trusting the model to get clause syntax right.
-    Returns (prolog_rule_text, plain_english) on success, None on failure.
-    """
     if not gemini_client:
         return None
 
@@ -198,11 +160,6 @@ def generate_rule_with_gemini(policy_text: str):
         if role not in ALLOWED_ROLES or clearance not in ALLOWED_LEVELS:
             return None
 
-        # We build the clause ourselves from validated fields rather than
-        # accepting raw Prolog text from the model — this guarantees the
-        # output is syntactically well-formed Prolog before it ever reaches
-        # the engine, and prevents arbitrary code from being injected via
-        # a clever prompt.
         rule_text = f"allowed(X, {action}, Y) :- role(X, {role}), clearance(Y, {clearance})"
 
         return rule_text, plain_english
@@ -213,20 +170,9 @@ def generate_rule_with_gemini(policy_text: str):
 
 
 def verify_and_test_rule(rule_text: str, test_role: str, test_clearance: str, test_action: str):
-    """
-    The actual 'logic proves it' step. A rule Gemini proposed is NOT
-    trusted just because it parsed when we built the string — we load it
-    into a real, fresh Prolog engine (alongside the existing policy.pl
-    rules) and run a real query against it. If SWI-Prolog rejects the
-    clause, or the query fails, that's the verdict — not a guess.
-    """
     prolog = Prolog()
     prolog.consult("policy.pl")
 
-    # Same shared-engine issue as check_compliance: clear out any test
-    # facts AND any previously-asserted generated rule before adding the
-    # new one, so successive /generate_rule calls can't see each other's
-    # leftover state.
     list(prolog.query("retractall(role(testuser, _))"))
     list(prolog.query("retractall(clearance(testdoc, _))"))
 
@@ -244,9 +190,6 @@ def verify_and_test_rule(rule_text: str, test_role: str, test_clearance: str, te
 
     result = list(prolog.query(f"allowed(testuser, {test_action}, testdoc)"))
 
-    # Clean up: retract the rule we just asserted so it doesn't persist
-    # into the next request's engine state (allowed/3 is now dynamic,
-    # which means it WILL silently accumulate clauses forever otherwise).
     try:
         prolog.retract(rule_text)
     except Exception:
@@ -265,7 +208,6 @@ def verify_and_test_rule(rule_text: str, test_role: str, test_clearance: str, te
 
 
 def extract_facts_local(scenario: str):
-    """Simple keyword-based extraction — no API needed, always available."""
     text = scenario.lower()
 
     if "contractor" in text:
@@ -288,10 +230,6 @@ def check_compliance(scenario: str) -> dict:
     prolog = Prolog()
     prolog.consult("policy.pl")
 
-    # SWI-Prolog runs one shared engine per process — Prolog() does NOT
-    # give you a fresh isolated database each call. Without this, facts
-    # asserted by a previous request stay in memory and can silently
-    # satisfy a later, unrelated query. Clear the slate every request.
     list(prolog.query("retractall(role(_,_))"))
     list(prolog.query("retractall(clearance(_,_))"))
 
@@ -351,10 +289,6 @@ def check_transaction(amount, has_signoff, has_fraud_flag):
     if has_fraud_flag:
         prolog.assertz("fraud_flag(txn_demo)")
 
-    # Ground truth for the overall verdict, and for each individual tier —
-    # all four come straight from the engine. The explanation below only
-    # describes these results; it never re-derives them, so it cannot
-    # disagree with the verdict the way the old hand-written version could.
     verdict_satisfied = bool(list(prolog.query("approved(txn_demo)")))
     auto_ok = bool(list(prolog.query("auto_approved(txn_demo)")))
     mid_ok = bool(list(prolog.query("midtier_approved(txn_demo)")))
