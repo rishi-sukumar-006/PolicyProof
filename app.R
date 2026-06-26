@@ -3,17 +3,46 @@ library(httr)
 library(jsonlite)
 library(shinyjs)
 library(shinycssloaders)
-
-
-myui <- fluidPage(
+ 
+ 
+ui <- fluidPage(
   useShinyjs(),
-
+ 
   tags$head(
-    tags$style(HTML("      
+    tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"),
+
+    tags$style(HTML("
+      /* ── Design tokens ────────────────────────────────────── */
+      :root {
+        --bg-page:       #F4F6F9;
+        --bg-card:       #FFFFFF;
+        --border:        #E2E6EC;
+        --text-primary:  #1F2A3A;
+        --text-secondary:#5B6B82;
+        --brand-primary: #2C4870;
+        --brand-accent:  #3D5AFE;
+        --success:       #2F9E44;
+        --danger:        #E03131;
+        --warning:       #E67E22;
+        --neutral-chip-bg:  #EEF1F6;
+        --neutral-chip-text:#2C4870;
+        --mono-trace:    #8893A6;
+
+        --radius-card:   12px;
+        --radius-input:  8px;
+        --radius-chip:   8px;
+        --shadow-card:   0 1px 3px rgba(15, 23, 42, 0.06);
+        --font-ui:       'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+        --font-mono:     'IBM Plex Mono', 'JetBrains Mono', monospace;
+      }
+
+      /* ── Reset / base ─────────────────────────────────────── */
       body {
-        background: linear-gradient(180deg, #F8F9FB 0%, #EEF2F7 100%);
-        color: #2C3E50;
-        font-family: Inter, 'IBM Plex Sans', 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg-page);
+        color: var(--text-primary);
+        font-family: var(--font-ui);
+        font-size: 15px;
+        line-height: 1.55;
       }
 
       .container-fluid {
@@ -21,13 +50,14 @@ myui <- fluidPage(
         padding: 32px 20px 48px;
       }
 
+      /* ── Header card ──────────────────────────────────────── */
       .topbar {
-        background: #FFFFFF;
-        border: 1px solid #E1E7EF;
-        border-radius: 16px;
-        padding: 26px 30px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        padding: 24px 28px;
         margin-bottom: 22px;
-        box-shadow: 0 10px 30px rgba(44, 62, 80, 0.06);
+        box-shadow: var(--shadow-card);
       }
 
       .brand-row {
@@ -41,12 +71,14 @@ myui <- fluidPage(
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
-        background: #2E5AAC;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--brand-primary);
         color: #FFFFFF;
-        font-weight: 800;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: -0.02em;
         margin-right: 12px;
       }
 
@@ -57,140 +89,216 @@ myui <- fluidPage(
 
       .topbar h1 {
         margin: 0;
-        color: #24364B;
-        font-size: 30px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
+        color: var(--text-primary);
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
 
       .topbar p {
-        margin: 8px 0 0 54px;
-        color: #66788A;
-        font-size: 15px;
+        margin: 6px 0 0 52px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.5;
       }
 
       .system-status {
-        border: 1px solid #D9E2EC;
-        background: #F8FAFC;
-        color: #46627F;
-        padding: 8px 12px;
+        border: 1px solid var(--border);
+        background: var(--bg-page);
+        color: var(--text-secondary);
+        padding: 6px 14px;
         border-radius: 999px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
         white-space: nowrap;
+        letter-spacing: 0.01em;
       }
 
+      /* ── Tabs — underline style ───────────────────────────── */
       .nav-tabs {
-        border-bottom: 1px solid #D9E2EC;
+        border-bottom: 2px solid var(--border);
         margin-bottom: 20px;
       }
 
       .nav-tabs > li > a {
-        color: #52677A;
+        color: var(--text-secondary);
         background: transparent;
         border: 0;
-        border-radius: 8px 8px 0 0;
-        font-weight: 700;
-        padding: 12px 16px;
+        border-radius: 0;
+        border-bottom: 2px solid transparent;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 16px;
+        margin-bottom: -2px;
+        transition: color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .nav-tabs > li > a:hover {
+        color: var(--brand-primary);
+        border-color: transparent;
+        background: transparent;
       }
 
       .nav-tabs > li.active > a,
       .nav-tabs > li.active > a:focus,
       .nav-tabs > li.active > a:hover {
-        color: #2E5AAC;
-        background: #FFFFFF;
-        border: 1px solid #D9E2EC;
-        border-bottom-color: #FFFFFF;
+        color: var(--brand-primary);
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid var(--brand-primary);
+        border-radius: 0;
       }
 
+      /* ── Cards ─────────────────────────────────────────────── */
       .card {
-        background: #FFFFFF;
-        border: 1px solid #E1E7EF;
-        border-radius: 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
         padding: 24px;
         margin-bottom: 18px;
-        box-shadow: 0 10px 30px rgba(44, 62, 80, 0.05);
+        box-shadow: var(--shadow-card);
       }
 
       .card-title {
-        margin: 0 0 8px;
-        color: #24364B;
-        font-size: 18px;
-        font-weight: 800;
+        margin: 0 0 6px;
+        color: var(--text-primary);
+        font-size: 17px;
+        font-weight: 700;
       }
 
       .card-subtitle {
         margin: 0 0 18px;
-        color: #6B7F93;
+        color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.5;
       }
 
+      /* ── Form controls ─────────────────────────────────────── */
       .form-control,
       textarea,
-      input[type='number'] {
-        background: #FFFFFF !important;
-        color: #2C3E50 !important;
-        border: 1px solid #C9D4E1 !important;
-        border-radius: 10px !important;
+      input[type='number'],
+      input[type='text'] {
+        background: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-input) !important;
         box-shadow: none !important;
+        font-family: var(--font-ui) !important;
+        font-size: 14px !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
       }
 
       textarea:focus,
-      input[type='number']:focus {
-        border-color: #2E5AAC !important;
-        box-shadow: 0 0 0 3px rgba(46, 90, 172, 0.12) !important;
+      input[type='number']:focus,
+      input[type='text']:focus {
+        border-color: var(--brand-accent) !important;
+        box-shadow: 0 0 0 3px rgba(61, 90, 254, 0.15) !important;
+        outline: none;
+      }
+
+      textarea::placeholder {
+        color: var(--text-secondary) !important;
       }
 
       .control-label {
-        color: #2C3E50;
-        font-weight: 750;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 13px;
       }
 
       .checkbox label {
-        color: #43566A;
-        font-weight: 600;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 14px;
       }
 
+      select {
+        background: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-input) !important;
+        font-family: var(--font-ui) !important;
+        font-size: 14px !important;
+      }
+
+      /* ── Buttons ───────────────────────────────────────────── */
       .btn {
-        border-radius: 8px;
-        font-weight: 750;
-        padding: 10px 16px;
+        border-radius: var(--radius-input);
+        font-weight: 600;
+        font-size: 14px;
+        padding: 9px 18px;
         border: 0;
-        transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        transition: background-color 0.15s ease, transform 0s, box-shadow 0s;
       }
 
       .btn:hover {
-        transform: translateY(-1px);
+        transform: none;
       }
 
-      .btn-primary,
-      .btn-success,
-      .btn-warning {
-        background: #2E5AAC !important;
+      /* Primary CTA — solid accent, no gradient */
+      .btn-primary {
+        background: var(--brand-accent) !important;
         color: #FFFFFF !important;
-        box-shadow: 0 8px 18px rgba(46, 90, 172, 0.18);
+        box-shadow: none;
       }
 
       .btn-primary:hover,
-      .btn-success:hover,
-      .btn-warning:hover {
-        background: #24498C !important;
+      .btn-primary:focus {
+        background: var(--brand-primary) !important;
         color: #FFFFFF !important;
       }
 
+      .btn-success,
+      .btn-warning {
+        background: var(--brand-accent) !important;
+        color: #FFFFFF !important;
+        box-shadow: none;
+      }
+
+      .btn-success:hover,
+      .btn-warning:hover {
+        background: var(--brand-primary) !important;
+        color: #FFFFFF !important;
+      }
+
+      /* Example / secondary chips */
       .btn-secondary,
-      .example-btn {
-        background: #F3F6FA !important;
-        color: #2E5AAC !important;
-        border: 1px solid #D6E0EB !important;
+      .chip-btn {
+        background: var(--neutral-chip-bg) !important;
+        color: var(--neutral-chip-text) !important;
+        border: none !important;
         box-shadow: none;
         margin: 0 8px 8px 0;
+        border-radius: var(--radius-chip) !important;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 7px 14px;
+        transition: background-color 0.15s ease;
       }
 
       .btn-secondary:hover,
+      .chip-btn:hover {
+        background: #DCE1EA !important;
+        color: var(--brand-primary) !important;
+      }
+
+      /* legacy .example-btn kept for compatibility */
+      .example-btn {
+        background: var(--neutral-chip-bg) !important;
+        color: var(--neutral-chip-text) !important;
+        border: none !important;
+        box-shadow: none;
+        margin: 0 8px 8px 0;
+        border-radius: var(--radius-chip) !important;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 7px 14px;
+        transition: background-color 0.15s ease;
+      }
+
       .example-btn:hover {
-        background: #E8EEF6 !important;
+        background: #DCE1EA !important;
+        color: var(--brand-primary) !important;
       }
 
       .button-row {
@@ -201,83 +309,180 @@ myui <- fluidPage(
         margin-top: 12px;
       }
 
+      /* ── Verdict card ──────────────────────────────────────── */
       .verdict-card {
-        border-radius: 14px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
         padding: 22px;
-        border: 1px solid #DDE6F0;
-        background: #FFFFFF;
+        box-shadow: var(--shadow-card);
         animation: slideFade 0.32s ease both;
       }
 
       .verdict-label {
-        color: #6B7F93;
-        font-size: 12px;
-        font-weight: 850;
+        color: var(--text-secondary);
+        font-size: 11px;
+        font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         margin-bottom: 10px;
       }
 
       .verdict-heading {
-        margin: 0 0 12px;
-        font-size: 28px;
-        font-weight: 850;
-        letter-spacing: -0.035em;
+        margin: 0 0 10px;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
 
       .verdict-reason {
-        color: #43566A;
-        font-size: 15px;
-        line-height: 1.62;
-        margin-bottom: 18px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 16px;
         white-space: pre-wrap;
       }
 
+      /* ── Verdict result box — dynamic states ─────────────── */
+      .verdict-box {
+        border-radius: var(--radius-card);
+        padding: 18px 20px;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      /* empty / placeholder state */
+      .verdict-box.empty-state {
+        border: 1px dashed var(--border);
+        border-left: none;
+        background: transparent;
+        border-radius: var(--radius-card);
+        padding: 18px;
+        color: var(--text-secondary);
+        line-height: 1.55;
+        font-size: 14px;
+      }
+
+      /* COMPLIANT */
+      .verdict-box.compliant {
+        background: rgba(47, 158, 68, 0.08);
+        border-left: 4px solid var(--success);
+        border-radius: var(--radius-card);
+      }
+
+      .verdict-box.compliant .verdict-heading {
+        color: var(--success);
+      }
+
+      /* VIOLATION */
+      .verdict-box.violation {
+        background: rgba(224, 49, 49, 0.08);
+        border-left: 4px solid var(--danger);
+        border-radius: var(--radius-card);
+      }
+
+      .verdict-box.violation .verdict-heading {
+        color: var(--danger);
+      }
+
+      /* WARNING — kept for edge cases */
+      .verdict-box.warning {
+        background: rgba(230, 126, 34, 0.08);
+        border-left: 4px solid var(--warning);
+        border-radius: var(--radius-card);
+      }
+
+      .verdict-box.warning .verdict-heading {
+        color: var(--warning);
+      }
+
+      /* legacy class compatibility */
       .status-success {
-        border-left: 6px solid #2E7D32;
-        background: #F3FAF4;
+        background: rgba(47, 158, 68, 0.08) !important;
+        border-left: 4px solid var(--success) !important;
       }
 
       .status-success .verdict-heading {
-        color: #2E7D32;
+        color: var(--success) !important;
       }
 
       .status-danger {
-        border-left: 6px solid #C0392B;
-        background: #FFF6F4;
+        background: rgba(224, 49, 49, 0.08) !important;
+        border-left: 4px solid var(--danger) !important;
       }
 
       .status-danger .verdict-heading {
-        color: #C0392B;
+        color: var(--danger) !important;
       }
 
       .status-warning {
-        border-left: 6px solid #E67E22;
-        background: #FFF8F1;
+        background: rgba(230, 126, 34, 0.08) !important;
+        border-left: 4px solid var(--warning) !important;
       }
 
       .status-warning .verdict-heading {
-        color: #B95F12;
+        color: var(--warning) !important;
       }
 
+      /* ── Proof trace — signature element ────────────────── */
+      .proof-trace {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--mono-trace);
+        background: var(--bg-page);
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .proof-trace-block {
+        margin-top: 10px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        background: var(--bg-page);
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--mono-trace);
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .proof-trace-label {
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      /* ── Risk pill ────────────────────────────────────────── */
       .risk-pill {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         border-radius: 999px;
-        padding: 7px 12px;
-        font-size: 13px;
-        font-weight: 800;
-        background: #F3F6FA;
-        border: 1px solid #DCE5EF;
-        color: #43566A;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--neutral-chip-bg);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
       }
 
+      /* ── Grid / mini-panels ────────────────────────────────── */
       .section-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-        margin-top: 18px;
+        gap: 14px;
+        margin-top: 16px;
       }
 
       @media (max-width: 760px) {
@@ -296,33 +501,33 @@ myui <- fluidPage(
       }
 
       .mini-panel {
-        background: #FFFFFF;
-        border: 1px solid #E1E7EF;
-        border-radius: 14px;
-        padding: 18px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        padding: 16px;
       }
 
       .mini-panel h4 {
-        margin: 0 0 12px;
-        color: #24364B;
-        font-size: 15px;
-        font-weight: 850;
+        margin: 0 0 10px;
+        color: var(--text-primary);
+        font-size: 14px;
+        font-weight: 700;
       }
 
       .policy-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
       }
 
       .policy-chip {
-        border: 1px solid #D6E0EB;
-        background: #F8FAFC;
-        color: #43566A;
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 13px;
-        font-weight: 750;
+        border: 1px solid var(--border);
+        background: var(--neutral-chip-bg);
+        color: var(--neutral-chip-text);
+        border-radius: var(--radius-chip);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .steps-list,
@@ -336,44 +541,66 @@ myui <- fluidPage(
       .audit-list li {
         display: flex;
         align-items: flex-start;
-        gap: 9px;
-        color: #43566A;
-        font-size: 14px;
-        padding: 6px 0;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        padding: 5px 0;
       }
 
       .check-icon {
-        color: #2E7D32;
-        font-weight: 900;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 13px;
       }
 
       .audit-time {
-        color: #7C8EA1;
-        font-variant-numeric: tabular-nums;
+        color: var(--mono-trace);
+        font-family: var(--font-mono);
+        font-size: 12px;
         min-width: 42px;
       }
 
+      /* ── Empty state ───────────────────────────────────────── */
       .empty-state {
-        color: #6B7F93;
-        border: 1px dashed #C9D4E1;
-        border-radius: 14px;
+        color: var(--text-secondary);
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-card);
         padding: 18px;
-        background: #F8FAFC;
+        background: transparent;
         line-height: 1.55;
+        font-size: 14px;
       }
 
+      /* ── Export / footer row ───────────────────────────────── */
       .export-row {
-        border-top: 1px solid #E6ECF3;
-        margin-top: 18px;
-        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        margin-top: 16px;
+        padding-top: 14px;
         display: flex;
         justify-content: flex-end;
       }
 
+      /* ── Generated rule code block ─────────────────────────── */
+      .rule-code {
+        background: var(--bg-page);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-input);
+        padding: 14px;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--text-primary);
+        white-space: pre-wrap;
+        line-height: 1.6;
+      }
+
+      /* ── Spinner colour ────────────────────────────────────── */
+      .shiny-spinner-output { color: var(--brand-primary); }
+
+      /* ── Animation ─────────────────────────────────────────── */
       @keyframes slideFade {
         from {
           opacity: 0;
-          transform: translateY(8px);
+          transform: translateY(6px);
         }
         to {
           opacity: 1;
@@ -382,7 +609,7 @@ myui <- fluidPage(
       }
     "))
   ),
-
+ 
   div(
     class = "topbar",
     div(
@@ -398,11 +625,11 @@ myui <- fluidPage(
       div(class = "system-status", "Deterministic Policy Engine")
     )
   ),
-
+ 
   tabsetPanel(
     tabPanel(
       "Document Access",
-
+ 
       div(
         class = "card",
         h2(class = "card-title", "Scenario"),
@@ -422,22 +649,22 @@ myui <- fluidPage(
           actionButton("check", "Check Compliance", class = "btn-primary")
         )
       ),
-
+ 
       div(
         class = "card",
         h2(class = "card-title", "Verdict"),
-        div(id = "verdict_box", withSpinner(uiOutput("verdict_ui"), type = 6, color = "#2E5AAC"))
+        div(id = "verdict_box", withSpinner(uiOutput("verdict_ui"), type = 6, color = "#2C4870"))
       )
     ),
-
+ 
     tabPanel(
       "Financial Transaction Approval",
-
+ 
       div(
         class = "card",
         h2(class = "card-title", "Transaction"),
         p(class = "card-subtitle", "Evaluate payment approval requirements using amount thresholds, manager signoff, and fraud flags."),
-        numericInput("amount", "Transaction Amount (₹):", value = 30000, min = 0, width = "100%"),
+        numericInput("amount", "Transaction Amount (\u20b9):", value = 30000, min = 0, width = "100%"),
         checkboxInput("signoff", "Manager Signoff Given", value = FALSE),
         checkboxInput("fraud", "Fraud Flag Present", value = FALSE),
         div(
@@ -448,61 +675,117 @@ myui <- fluidPage(
           actionButton("check_txn", "Check Transaction", class = "btn-primary")
         )
       ),
-
+ 
       div(
         class = "card",
         h2(class = "card-title", "Transaction Verdict"),
-        div(id = "txn_verdict_box", withSpinner(uiOutput("txn_verdict_ui"), type = 6, color = "#2E5AAC"))
+        div(id = "txn_verdict_box", withSpinner(uiOutput("txn_verdict_ui"), type = 6, color = "#2C4870"))
+      )
+    ),
+
+    tabPanel(
+      "Policy \u2192 Rule Generator",
+
+      div(
+        class = "card",
+        h2(class = "card-title", "Natural-Language Policy"),
+        p(class = "card-subtitle", "Describe a single access policy in plain English. Gemini proposes a Prolog rule for it, and the rule is only accepted if SWI-Prolog can actually parse and run it \u2014 nothing here is taken on faith."),
+        textAreaInput(
+          "policy_text",
+          NULL,
+          placeholder = "e.g. Contractors are allowed to read public documents",
+          rows = 4,
+          width = "100%"
+        ),
+        div(
+          class = "button-row",
+          actionButton("example_policy_contractor", "Contractor Grant", class = "example-btn"),
+          actionButton("example_policy_guest", "Guest Restriction", class = "example-btn")
+        ),
+        div(
+          class = "section-grid",
+          div(
+            selectInput("test_role", "Test as role:", choices = c("employee", "contractor", "guest"), selected = "contractor")
+          ),
+          div(
+            selectInput("test_clearance", "Test against clearance:", choices = c("public", "confidential", "restricted"), selected = "public")
+          )
+        ),
+        textInput("test_action", "Test action:", value = "read", width = "100%"),
+        div(
+          class = "button-row",
+          actionButton("generate_rule", "Generate & Verify Rule", class = "btn-primary")
+        )
+      ),
+
+      div(
+        class = "card",
+        h2(class = "card-title", "Generated Rule"),
+        div(id = "rule_box", withSpinner(uiOutput("rule_ui"), type = 6, color = "#2C4870"))
       )
     )
   )
 )
-
-getResultType <- function(v) {
-  vtemp <- ifelse(is.null(v) || is.na(v), "UNKNOWN", as.character(v))
-  vbig <- toupper(vtemp)
-
-  goodFlag <- grepl("COMPLIANT|APPROVED|ALLOW|ALLOWED|PASS|PERMITTED", vbig)
-  badFlag <- grepl("NON|DENIED|DENY|REJECT|BLOCK|FAILED|VIOLATION|FRAUD|ERROR", vbig)
-
-  if (goodFlag) {
-    list(card_class = "status-success", risk = "🟢 Low", policies = c("Employee Access Policy", "Resource Classification Rule"))
-  } else if (badFlag) {
-    list(card_class = "status-danger", risk = "🔴 High", policies = c("Confidentiality Rule", "Access Restriction Policy"))
+ 
+classify_result <- function(verdict) {
+  verdict_clean <- ifelse(is.null(verdict) || is.na(verdict), "UNKNOWN", as.character(verdict))
+  verdict_upper <- toupper(verdict_clean)
+ 
+  is_success <- grepl("COMPLIANT|APPROVED|ALLOW|ALLOWED|PASS|PERMITTED", verdict_upper)
+  is_danger <- grepl("NON|DENIED|DENY|REJECT|BLOCK|FAILED|VIOLATION|FRAUD|ERROR", verdict_upper)
+ 
+  if (is_success) {
+    list(card_class = "status-success", risk = "Low", policies = c("Employee Access Policy", "Resource Classification Rule"))
+  } else if (is_danger) {
+    list(card_class = "status-danger", risk = "High", policies = c("Confidentiality Rule", "Access Restriction Policy"))
   } else {
-    list(card_class = "status-warning", risk = "🟠 Medium", policies = c("Manual Review Policy", "Exception Handling Rule"))
+    list(card_class = "status-warning", risk = "Medium", policies = c("Manual Review Policy", "Exception Handling Rule"))
   }
 }
 
-buildLogList <- function() {
-  t1 <- format(Sys.time(), "%H:%M")
+make_audit_rows <- function() {
+  now <- format(Sys.time(), "%H:%M")
   tags$ul(
     class = "audit-list",
-    tags$li(span(class = "audit-time", t1), span("Request received")),
-    tags$li(span(class = "audit-time", t1), span("Policy facts loaded")),
-    tags$li(span(class = "audit-time", t1), span("Rule match evaluated")),
-    tags$li(span(class = "audit-time", t1), span("Verdict generated"))
+    tags$li(span(class = "audit-time", now), span("Request received")),
+    tags$li(span(class = "audit-time", now), span("Policy facts loaded")),
+    tags$li(span(class = "audit-time", now), span("Rule match evaluated")),
+    tags$li(span(class = "audit-time", now), span("Verdict generated"))
   )
 }
 
-buildVerdictBlock <- function(v, e, kind = "document") {
-  vtemp <- ifelse(is.null(v) || is.na(v), "UNKNOWN", as.character(v))
-  etemp <- ifelse(is.null(e) || is.na(e), "No explanation returned by the API.", as.character(e))
-  meta1 <- getResultType(vtemp)
-
-  stepList <- if (kind == "transaction") {
+make_verdict_card <- function(verdict, explanation, mode = "document", prolog_trace = NULL) {
+  verdict_clean <- ifelse(is.null(verdict) || is.na(verdict), "UNKNOWN", as.character(verdict))
+  explanation_clean <- ifelse(is.null(explanation) || is.na(explanation), "No explanation returned by the API.", as.character(explanation))
+  result_meta <- classify_result(verdict_clean)
+ 
+  steps <- if (mode == "transaction") {
     c("Amount threshold checked", "Manager signoff verified", "Fraud flag evaluated", "Approval policy applied")
   } else {
     c("User identified", "Resource identified", "Permission checked", "Policy evaluated")
   }
 
-  div(
-    class = paste("verdict-card", meta1$card_class),
-    div(class = "verdict-label", "Verdict"),
-    h2(class = "verdict-heading", vtemp),
-    div(class = "verdict-reason", strong("Reason: "), etemp),
-    div(class = "risk-pill", span("Risk Level:"), span(meta1$risk)),
+  trace_content <- if (!is.null(prolog_trace) && nchar(prolog_trace) > 0) {
+    prolog_trace
+  } else {
+    gsub("^Reason:\\s*", "", explanation_clean)
+  }
 
+  verdict_icon <- if (result_meta$card_class == "status-success") "\u2713 " else if (result_meta$card_class == "status-danger") "\u2717 " else ""
+
+  risk_color <- if (result_meta$card_class == "status-success") "var(--success)" else if (result_meta$card_class == "status-danger") "var(--danger)" else "var(--warning)"
+
+  div(
+    class = paste("verdict-card", result_meta$card_class),
+    div(class = "verdict-label", "Verdict"),
+    h2(class = "verdict-heading", paste0(verdict_icon, verdict_clean)),
+    div(class = "verdict-reason", strong("Reason: "), explanation_clean),
+
+    span(class = "proof-trace-label", "Proof Trace"),
+    div(class = "proof-trace-block", trace_content),
+
+    div(class = "risk-pill", span("Risk Level:"), span(style = paste0("color:", risk_color, ";font-weight:700;"), result_meta$risk)),
+ 
     div(
       class = "section-grid",
       div(
@@ -510,7 +793,7 @@ buildVerdictBlock <- function(v, e, kind = "document") {
         h4("Applicable Policies"),
         div(
           class = "policy-list",
-          lapply(meta1$policies, function(p1) div(class = "policy-chip", p1))
+          lapply(result_meta$policies, function(policy) div(class = "policy-chip", policy))
         )
       ),
       div(
@@ -518,13 +801,13 @@ buildVerdictBlock <- function(v, e, kind = "document") {
         h4("Analysis"),
         tags$ul(
           class = "steps-list",
-          lapply(stepList, function(s1) tags$li(span(class = "check-icon", "✓"), span(s1)))
+          lapply(steps, function(step) tags$li(span(class = "check-icon", "\u2713"), span(step)))
         )
       ),
       div(
         class = "mini-panel",
         h4("Audit Log"),
-        buildLogList()
+        make_audit_rows()
       ),
       div(
         class = "mini-panel",
@@ -535,98 +818,144 @@ buildVerdictBlock <- function(v, e, kind = "document") {
     )
   )
 }
+ 
+make_rule_card <- function(result) {
+  if (!is.null(result$error)) {
+    return(div(
+      class = "verdict-card status-warning",
+      div(class = "verdict-label", "Could Not Generate Rule"),
+      div(class = "verdict-reason", result$error)
+    ))
+  }
 
-myserver <- function(input, output, session) {
-  docVerdict <- reactiveVal(NULL)
-  txnVerdict <- reactiveVal(NULL)
+  accepted <- isTRUE(result$engine_accepted)
+  card_class <- if (accepted) "status-success" else "status-danger"
+  heading <- if (accepted) paste("ENGINE VERDICT:", result$test_verdict) else "ENGINE REJECTED RULE"
 
+  test_trace <- if (accepted) {
+    paste0(
+      "assert(", paste(unlist(result$test_facts), collapse = ", "), ").\n",
+      "query(", result$test_query, ") \u2192 ", result$test_verdict, "."
+    )
+  } else {
+    result$parse_error
+  }
+
+  div(
+    class = paste("verdict-card", card_class),
+    div(class = "verdict-label", "Policy \u2192 Rule"),
+    h2(class = "verdict-heading", heading),
+    div(class = "verdict-reason", strong("Policy: "), result$policy_text),
+    div(class = "verdict-reason", strong("Gemini's interpretation: "), result$plain_english),
+
+    span(class = "proof-trace-label", "Generated Rule"),
+    tags$pre(class = "rule-code", result$generated_rule),
+
+    if (accepted) {
+      tagList(
+        span(class = "proof-trace-label", "Test Trace"),
+        div(class = "proof-trace-block", test_trace)
+      )
+    } else {
+      tagList(
+        span(class = "proof-trace-label", "Parse Error"),
+        div(class = "proof-trace-block", test_trace)
+      )
+    }
+  )
+}
+
+server <- function(input, output, session) {
+  verdict_state <- reactiveVal(NULL)
+  txn_state <- reactiveVal(NULL)
+ 
   observeEvent(input$example_employee, {
     updateTextAreaInput(session, "scenario", value = "Alice is an employee and wants to read the public report.")
   })
-
+ 
   observeEvent(input$example_guest, {
     updateTextAreaInput(session, "scenario", value = "Kumar is a guest user and wants to download the confidential financial report.")
   })
-
+ 
   observeEvent(input$example_admin, {
     updateTextAreaInput(session, "scenario", value = "Priya is an admin and wants to update the internal access policy document.")
   })
-
+ 
   observeEvent(input$example_low_txn, {
     updateNumericInput(session, "amount", value = 12000)
     updateCheckboxInput(session, "signoff", value = FALSE)
     updateCheckboxInput(session, "fraud", value = FALSE)
   })
-
+ 
   observeEvent(input$example_high_txn, {
     updateNumericInput(session, "amount", value = 95000)
     updateCheckboxInput(session, "signoff", value = TRUE)
     updateCheckboxInput(session, "fraud", value = FALSE)
   })
-
+ 
   observeEvent(input$example_fraud_txn, {
     updateNumericInput(session, "amount", value = 45000)
     updateCheckboxInput(session, "signoff", value = TRUE)
     updateCheckboxInput(session, "fraud", value = TRUE)
   })
-
+ 
   output$verdict_ui <- renderUI({
-    r1 <- docVerdict()
-
-    if (is.null(r1)) {
+    result <- verdict_state()
+ 
+    if (is.null(result)) {
       return(div(
         class = "empty-state",
         "No decision generated yet. Select an example or enter a scenario, then click Check Compliance."
       ))
     }
-
-    buildVerdictBlock(r1$verdict, r1$explanation, kind = "document")
+ 
+    make_verdict_card(result$verdict, result$explanation, mode = "document")
   })
-
+ 
   output$txn_verdict_ui <- renderUI({
-    r2 <- txnVerdict()
-
-    if (is.null(r2)) {
+    result <- txn_state()
+ 
+    if (is.null(result)) {
       return(div(
         class = "empty-state",
         "No transaction decision generated yet. Enter transaction details, then click Check Transaction."
       ))
     }
-
-    buildVerdictBlock(r2$verdict, r2$explanation, kind = "transaction")
+ 
+    make_verdict_card(result$verdict, result$explanation, mode = "transaction")
   })
-
+ 
   observeEvent(input$check, {
     hide("verdict_box")
-
-    out1 <- tryCatch({
-      resp1 <- POST(
+ 
+    result <- tryCatch({
+      response <- POST(
         "http://localhost:5000/check",
         body = list(scenario = input$scenario),
         encode = "json"
       )
-
-      if (http_error(resp1)) {
-        stop(paste("API returned HTTP", status_code(resp1)))
+ 
+      if (http_error(response)) {
+        stop(paste("API returned HTTP", status_code(response)))
       }
-
-      content(resp1, "parsed")
-    }, error = function(err1) {
+ 
+      content(response, "parsed")
+    }, error = function(e) {
       list(
         verdict = "ERROR",
-        explanation = paste("Could not reach or parse the compliance API:", err1$message)
+        explanation = paste("Could not reach or parse the compliance API:", e$message)
       )
     })
-
-    docVerdict(out1)
+ 
+    verdict_state(result)
     delay(120, show("verdict_box", anim = TRUE, animType = "fade"))
   })
-
+ 
   observeEvent(input$check_txn, {
     hide("txn_verdict_box")
-
-    out2 <- tryCatch({
-      resp2 <- POST(
+ 
+    result <- tryCatch({
+      response <- POST(
         "http://localhost:5000/check_transaction",
         body = list(
           amount = input$amount,
@@ -635,22 +964,81 @@ myserver <- function(input, output, session) {
         ),
         encode = "json"
       )
-
-      if (http_error(resp2)) {
-        stop(paste("API returned HTTP", status_code(resp2)))
+ 
+      if (http_error(response)) {
+        stop(paste("API returned HTTP", status_code(response)))
       }
-
-      content(resp2, "parsed")
-    }, error = function(err2) {
+ 
+      content(response, "parsed")
+    }, error = function(e) {
       list(
         verdict = "ERROR",
-        explanation = paste("Could not reach or parse the transaction API:", err2$message)
+        explanation = paste("Could not reach or parse the transaction API:", e$message)
       )
     })
-
-    txnVerdict(out2)
+ 
+    txn_state(result)
     delay(120, show("txn_verdict_box", anim = TRUE, animType = "fade"))
+  })
+
+  observeEvent(input$example_policy_contractor, {
+    updateTextAreaInput(session, "policy_text", value = "Contractors are allowed to read public documents.")
+    updateSelectInput(session, "test_role", selected = "contractor")
+    updateSelectInput(session, "test_clearance", selected = "public")
+    updateTextInput(session, "test_action", value = "read")
+  })
+
+  observeEvent(input$example_policy_guest, {
+    updateTextAreaInput(session, "policy_text", value = "Guests are allowed to read public documents only.")
+    updateSelectInput(session, "test_role", selected = "guest")
+    updateSelectInput(session, "test_clearance", selected = "confidential")
+    updateTextInput(session, "test_action", value = "read")
+  })
+
+  rule_state <- reactiveVal(NULL)
+
+  output$rule_ui <- renderUI({
+    result <- rule_state()
+
+    if (is.null(result)) {
+      return(div(
+        class = "empty-state",
+        "No rule generated yet. Describe a policy, then click Generate & Verify Rule."
+      ))
+    }
+
+    make_rule_card(result)
+  })
+
+  observeEvent(input$generate_rule, {
+    hide("rule_box")
+
+    result <- tryCatch({
+      response <- POST(
+        "http://localhost:5000/generate_rule",
+        body = list(
+          policy_text = input$policy_text,
+          test_role = input$test_role,
+          test_clearance = input$test_clearance,
+          test_action = input$test_action
+        ),
+        encode = "json"
+      )
+
+      parsed <- content(response, "parsed")
+
+      if (http_error(response)) {
+        list(error = if (!is.null(parsed$error)) parsed$error else paste("API returned HTTP", status_code(response)))
+      } else {
+        parsed
+      }
+    }, error = function(e) {
+      list(error = paste("Could not reach the rule-generation API:", e$message))
+    })
+
+    rule_state(result)
+    delay(120, show("rule_box", anim = TRUE, animType = "fade"))
   })
 }
 
-shinyApp(ui = myui, server = myserver)
+shinyApp(ui = ui, server = server)
